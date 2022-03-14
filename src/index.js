@@ -2,6 +2,8 @@ import React from 'react';
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { debounce } from './constants/utils';
+import { fetchChargerPoints } from './services/openChargeMap';
 
 const { width, height } = Dimensions.get('window');
 
@@ -11,14 +13,33 @@ const LONGITUDE = 27.973646800965067; // Somewhere in Joburg
 const LATITUDE_DELTA = 0.0922; // from `examples/DisplayLatLng.js`
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO; // from `examples/DisplayLatLng.js`
 
+// debounce delay
+const DELAY = 500; // in milliseconds
+
 export default function App() {
   const [region, setRegion] = React.useState({ data: null, isLoading: false });
+  const [listChargers, setListChargers] = React.useState([]);
+
+  // May be useful later
+  // const getTopLeftCoord = () => {
+  //   return {
+  //     latitude: region?.data?.latitude + (region?.data?.latitudeDelta/2),
+  //     longitude: region?.data?.longitude - (region?.data?.longitude/2)
+  //   }
+  // }
+
+  // const getBottomRightCoord = () => {
+  //   return {
+  //     latitude: region?.data?.latitude - (region?.data?.latitude/2),
+  //     longitude: region?.data?.longitude + (region?.data?.longitude/2)
+  //   }
+  // }
 
   const handleCurrentUpdate = () => {
     setRegion((prevLocation) => ({ data: { ...prevLocation?.data }, isLoading: true }))
   }
 
-  const handleRegionChange = (thisRegion) => {
+  const handleRegionChange = async (thisRegion) => {
     const { latitude, longitude, latitudeDelta, longitudeDelta } = thisRegion;
 
     setRegion({
@@ -55,7 +76,32 @@ export default function App() {
     }
   }, [region.isLoading])
 
-  console.log('The location now is', JSON.stringify(region, null, 2));
+  React.useEffect(() => {
+    (function getChargerPoints() {
+      debounce(async () => {
+        // fetch all POI within the region
+        try {
+          const response = await fetchChargerPoints();
+
+          const responseData = response.map((item) => {
+            const { UUID, AddressInfo, NumberOfPoints, StatusType } = item;
+            return { 
+              UUID, 
+              latitude: AddressInfo.Latitude, longitude: AddressInfo.Longitude,
+              NumberOfPoints,
+              isOperational: StatusType.IsOperational,
+              isUserSelectable: StatusType.IsUserSelectable,
+            };
+          });
+
+          setListChargers(responseData);
+        } catch (err) {
+          console.log(`[Error] getChargerPoints()\n${err}`) 
+        }
+      }, DELAY)
+      
+    })()
+  }, [region.data])
 
   return (
     <View style={styles.layout}>
