@@ -12,6 +12,7 @@
     "clean:cache:watchman": "watchman watch-del-all"
   },
   "dependencies": {
+    "axios": "^0.26.1",
     "expo": "~44.0.2",
     "expo-location": "~14.0.1",
     "expo-splash-screen": "~0.14.1",
@@ -19,6 +20,7 @@
     "react": "17.0.1",
     "react-dom": "17.0.1",
     "react-native": "0.64.3",
+    "react-native-config": "^1.4.5",
     "react-native-maps": "0.29.4",
     "react-native-web": "0.17.1"
   },
