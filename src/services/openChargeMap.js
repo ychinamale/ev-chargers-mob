@@ -8,7 +8,10 @@ const ocmAPI = axios.create({
   }
 })
 
-export async function fetchChargerPoints() {
-  const response = await ocmAPI.get('/poi')
+export async function fetchChargerPoints(position) {
+  const { latitude, longitude } = position;
+  const response = await ocmAPI.get('/poi', { 
+    params: { latitude, longitude }
+  })
   return response?.data
 }
