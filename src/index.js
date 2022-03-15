@@ -2,13 +2,14 @@ import React from 'react';
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { debounce } from './constants/utils';
+import { debounceWithRef } from './constants/utils';
+import { startCharging  } from './services/api';
 import { fetchChargerPoints } from './services/openChargeMap';
 import { icons } from './constants/images';
 
-
 const { width, height } = Dimensions.get('window');
 
+// Constants that will be used defaults when MapView first renders
 const ASPECT_RATIO = width / height;
 const LATITUDE = -26.130029273632143; // Somewhere in Joburg
 const LONGITUDE = 27.973646800965067; // Somewhere in Joburg
@@ -21,22 +22,10 @@ const DELAY = 500; // in milliseconds
 export default function App() {
   const [region, setRegion] = React.useState({ data: null, isLoading: false });
   const [listChargers, setListChargers] = React.useState([]);
+  const [chosenCharger, setChosenCharger] = React.useState(null);
+  const timerRef = React.useRef();
 
-  // May be useful later
-  // const getTopLeftCoord = () => {
-  //   return {
-  //     latitude: region?.data?.latitude + (region?.data?.latitudeDelta/2),
-  //     longitude: region?.data?.longitude - (region?.data?.longitude/2)
-  //   }
-  // }
-
-  // const getBottomRightCoord = () => {
-  //   return {
-  //     latitude: region?.data?.latitude - (region?.data?.latitude/2),
-  //     longitude: region?.data?.longitude + (region?.data?.longitude/2)
-  //   }
-  // }
-
+  // 
   const handleCurrentUpdate = () => {
     setRegion((prevLocation) => ({ data: { ...prevLocation?.data }, isLoading: true }))
   }
@@ -55,6 +44,20 @@ export default function App() {
     })
   }
 
+  const handleSelectCharger = (charger) => {
+    setChosenCharger(charger);
+  }
+
+  const handleBeginCharging = async () => {
+    try {
+      const response = await startCharging(chosenCharger);
+      console.log(`[Success] We are charging\n${response}`);
+    } catch (err) {
+      console.log(`[Error] handleBeginCharging\n${err}`);
+    }
+  }
+
+  // Side effect to handle updating the region to the device's current location
   React.useEffect(() => {
     if (!!region.isLoading) {
       (async function getCurrentLocation () {
@@ -78,37 +81,44 @@ export default function App() {
     }
   }, [region.isLoading])
 
+  // Side effect to listen for changes in map region and refetch chargers in the vicinity
   React.useEffect(() => {
-    (async function getChargerPoints() {
-      // fetch all POI within the region
-      try {
-        const position = { latitude: region.data.latitude, longitude: region.data.longitude }
-        const response = await fetchChargerPoints(position);
+    (function getChargerPoints() {
+      debounceWithRef(async () => {
+        // fetch all POI within the region
+        try {
+          const position = { latitude: region?.data?.latitude, longitude: region?.data?.longitude }
+          const response = await fetchChargerPoints(position);
 
-        const responseData = response.map((item) => {
-          const { UUID, AddressInfo, NumberOfPoints, StatusType } = item;
+          const responseData = response.map((item) => {
+            const { ID, AddressInfo, NumberOfPoints, StatusType } = item;
 
-          return { 
-            UUID,
-            country: AddressInfo.Country.Title,
-            latitude: AddressInfo.Latitude,
-            longitude: AddressInfo.Longitude,
-            numberOfPoints: NumberOfPoints,
-            isOperational: StatusType.IsOperational,
-            isUserSelectable: StatusType.IsUserSelectable,
-          };
-        });
+            return {
+              ID,
+              country: AddressInfo.Country.Title,
+              latitude: AddressInfo.Latitude,
+              longitude: AddressInfo.Longitude,
+              numberOfPoints: NumberOfPoints,
+              isOperational: StatusType?.IsOperational,
+              isUserSelectable: StatusType?.IsUserSelectable,
+            };
+          });
 
-        setListChargers(responseData);
-      } catch (err) {
-        console.log(`[Error] getChargerPoints()\n${err}`) 
-      }
+          setListChargers(responseData);
+        } catch (err) {
+          console.log(`[Error] getChargerPoints()\n${err}`) 
+        }
+      }, DELAY, timerRef)
     })()
+
+    return () => {
+      clearTimeout(timerRef.current)
+    }
   }, [region.data])
 
   return (
     <View style={styles.layout}>
-      <Text>Charger Finder</Text>
+      <Text>EV Charger Finder</Text>
       <View style={styles.mapContainer}>
         <MapView 
           provider={PROVIDER_GOOGLE}
@@ -124,27 +134,34 @@ export default function App() {
         >
           { listChargers?.length > 0 && (
             <>
-              { listChargers.map((marker, index) => (
+              { listChargers.map((charger, index) => (
                 <Marker
                   key={index}
-                  coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
+                  coordinate={{ latitude: charger.latitude, longitude: charger.longitude }}
                   image={icons.bolt_active}
+                  onPress={() => { handleSelectCharger(charger) }}
                 />
               ))}
             </>
           )}
         </MapView>
       </View>
-      <Text>Status: { !!region.isLoading ? '...loading': 'Done' }</Text>
+      <Text>Status: { !!region.isLoading ? '...loading': 'Ready' }</Text>
       <TouchableOpacity style={styles.button} onPress={handleCurrentUpdate} >
-        <Text>get current location</Text>
+        <Text>Current location</Text>
       </TouchableOpacity>
+      { !!chosenCharger && (
+        <TouchableOpacity style={styles.button} onPress={handleBeginCharging} >
+          <Text>Start charging at #{chosenCharger.ID}</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
+    marginTop: 12,
     padding: 12,
     borderWidth: 1,
     borderRadius: 4,
