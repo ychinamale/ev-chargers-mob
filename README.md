@@ -2,6 +2,13 @@
 
 An Android app that allows an EV driver to find nearby charge points - built with React Native.
 
+## Approach
+
+The app launches with its default location set to a region in Johannesburg South Africa. The MapView component shows a map of the area.
+A side effect fetches ev chargers in the vicinity using coordinates of the default location.
+Moving the map triggers another side effect to update the region in focus (kept in state). Once that happens, the app re-fetches ev chargers in the new area.
+A simple png is used as a marker for a charger site. These are shown on the screen once the list of charge points updates. To check against calls to re-fetch charge points being too frequent, a debounce function is used to delay repeat calls when the region updates.
+
 ## App Preview
 
 <img src="https://user-images.githubusercontent.com/5281496/158482615-1442b4e2-813b-4bec-a6d0-53d6517fb630.gif" width="220" />
