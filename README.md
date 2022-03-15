@@ -42,7 +42,7 @@ OPENCHARGEMAP_BASE_URL=https://api.openchargemap.io/v3
 - Add more comments to the code
 - Add dimension scaling
 - Looked into performance (e.g. unnecessary re-renders, glitch when user quickly flicks the MapView)
-- Moved API key on our backend, so BE would interact with openchargemap API instead
+- Moved API keys to backend
 - A location search at the top so we don't scroll everywhere
 - A bookmark feature for favourite locations
 - An intuitive way of showing that a certain charger has multiple charge points
