@@ -1,9 +1,11 @@
 import React from 'react';
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { debounce } from './constants/utils';
 import { fetchChargerPoints } from './services/openChargeMap';
+import { icons } from './constants/images';
+
 
 const { width, height } = Dimensions.get('window');
 
@@ -77,29 +79,30 @@ export default function App() {
   }, [region.isLoading])
 
   React.useEffect(() => {
-    (function getChargerPoints() {
-      debounce(async () => {
-        // fetch all POI within the region
-        try {
-          const response = await fetchChargerPoints();
+    (async function getChargerPoints() {
+      // fetch all POI within the region
+      try {
+        const position = { latitude: region.data.latitude, longitude: region.data.longitude }
+        const response = await fetchChargerPoints(position);
 
-          const responseData = response.map((item) => {
-            const { UUID, AddressInfo, NumberOfPoints, StatusType } = item;
-            return { 
-              UUID, 
-              latitude: AddressInfo.Latitude, longitude: AddressInfo.Longitude,
-              NumberOfPoints,
-              isOperational: StatusType.IsOperational,
-              isUserSelectable: StatusType.IsUserSelectable,
-            };
-          });
+        const responseData = response.map((item) => {
+          const { UUID, AddressInfo, NumberOfPoints, StatusType } = item;
 
-          setListChargers(responseData);
-        } catch (err) {
-          console.log(`[Error] getChargerPoints()\n${err}`) 
-        }
-      }, DELAY)
-      
+          return { 
+            UUID,
+            country: AddressInfo.Country.Title,
+            latitude: AddressInfo.Latitude,
+            longitude: AddressInfo.Longitude,
+            numberOfPoints: NumberOfPoints,
+            isOperational: StatusType.IsOperational,
+            isUserSelectable: StatusType.IsUserSelectable,
+          };
+        });
+
+        setListChargers(responseData);
+      } catch (err) {
+        console.log(`[Error] getChargerPoints()\n${err}`) 
+      }
     })()
   }, [region.data])
 
@@ -118,7 +121,19 @@ export default function App() {
           }}
           region={region.data}
           onRegionChangeComplete={(thisRegion) => { handleRegionChange(thisRegion) }}
-        />
+        >
+          { listChargers?.length > 0 && (
+            <>
+              { listChargers.map((marker, index) => (
+                <Marker
+                  key={index}
+                  coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
+                  image={icons.bolt_active}
+                />
+              ))}
+            </>
+          )}
+        </MapView>
       </View>
       <Text>Status: { !!region.isLoading ? '...loading': 'Done' }</Text>
       <TouchableOpacity style={styles.button} onPress={handleCurrentUpdate} >
