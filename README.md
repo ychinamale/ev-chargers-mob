@@ -43,6 +43,7 @@ OPENCHARGEMAP_BASE_URL=https://api.openchargemap.io/v3
 
 ## Things I'd have wanted to do
 
+- Update the 'Status' so it reflects the readiness of the charger markers
 - Setup and built iOS app
 - UI improvements
 - Housekeeping (e.g. set up absolute paths, linting, TS, app icons, splash screen)
